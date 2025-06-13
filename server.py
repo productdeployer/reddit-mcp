@@ -53,10 +53,10 @@ reddit = get_reddit_client()
 
 def _format_timestamp(timestamp: float) -> str:
     """Convert Unix timestamp to human readable format.
-    
+
     Args:
         timestamp (float): Unix timestamp
-        
+
     Returns:
         str: Formatted date string
     """
@@ -69,7 +69,7 @@ def _format_timestamp(timestamp: float) -> str:
 def _analyze_user_activity(karma_ratio: float, is_mod: bool, account_age_days: float) -> str:
     """Generate insights about user's Reddit activity and engagement."""
     insights = []
-    
+
     # Analyze karma ratio
     if karma_ratio > 5:
         insights.append("Primarily a commenter, highly engaged in discussions")
@@ -77,22 +77,22 @@ def _analyze_user_activity(karma_ratio: float, is_mod: bool, account_age_days: f
         insights.append("Content creator, focuses on sharing posts")
     else:
         insights.append("Balanced participation in both posting and commenting")
-    
+
     # Analyze account age and status
     if account_age_days < 30:
         insights.append("New user, still exploring Reddit")
     elif account_age_days > 365 * 5:
         insights.append("Long-time Redditor with extensive platform experience")
-    
+
     if is_mod:
         insights.append("Community leader who helps maintain subreddit quality")
-    
+
     return "\n  - ".join(insights)
 
 def _analyze_post_engagement(score: int, ratio: float, num_comments: int) -> str:
     """Generate insights about post engagement and performance."""
     insights = []
-    
+
     # Analyze score and ratio
     if score > 1000 and ratio > 0.95:
         insights.append("Highly successful post with strong community approval")
@@ -100,7 +100,7 @@ def _analyze_post_engagement(score: int, ratio: float, num_comments: int) -> str
         insights.append("Well-received post with good engagement")
     elif ratio < 0.5:
         insights.append("Controversial post that sparked debate")
-    
+
     # Analyze comment activity
     if num_comments > 100:
         insights.append("Generated significant discussion")
@@ -108,13 +108,13 @@ def _analyze_post_engagement(score: int, ratio: float, num_comments: int) -> str
         insights.append("Highly discussable content with active comment section")
     elif num_comments == 0:
         insights.append("Yet to receive community interaction")
-    
+
     return "\n  - ".join(insights)
 
 def _analyze_subreddit_health(subscribers: int, active_users: int, age_days: float) -> str:
     """Generate insights about subreddit health and activity."""
     insights = []
-    
+
     # Analyze size and activity
     if subscribers > 1000000:
         insights.append("Major subreddit with massive following")
@@ -122,20 +122,20 @@ def _analyze_subreddit_health(subscribers: int, active_users: int, age_days: flo
         insights.append("Well-established community")
     elif subscribers < 1000:
         insights.append("Niche community, potential for growth")
-    
+
     if active_users:  # If we have active users data
         activity_ratio = active_users / subscribers if subscribers > 0 else 0
         if activity_ratio > 0.1:
             insights.append("Highly active community with strong engagement")
         elif activity_ratio < 0.01:
             insights.append("Could benefit from more community engagement initiatives")
-    
+
     # Analyze age and maturity
     if age_days > 365 * 5:
         insights.append("Mature subreddit with established culture")
     elif age_days < 90:
         insights.append("New subreddit still forming its community")
-    
+
     return "\n  - ".join(insights)
 
 def _format_user_info(user: praw.models.Redditor) -> str:
@@ -144,10 +144,10 @@ def _format_user_info(user: praw.models.Redditor) -> str:
     if user.is_mod: status.append("Moderator")
     if user.is_gold: status.append("Reddit Gold Member")
     if user.is_employee: status.append("Reddit Employee")
-    
+
     account_age = (time.time() - user.created_utc) / (24 * 3600)  # age in days
     karma_ratio = user.comment_karma / user.link_karma if user.link_karma > 0 else float('inf')
-    
+
     return f"""
         • Username: u/{user.name}
         • Karma:
@@ -169,18 +169,22 @@ def _format_post(post: praw.models.Submission) -> str:
     """Format post information with AI-driven insights."""
     content_type = "Text Post" if post.is_self else "Link Post"
     content = post.selftext if post.is_self else post.url
-    
+
     flags = []
     if post.over_18: flags.append("NSFW")
     if hasattr(post, 'spoiler') and post.spoiler: flags.append("Spoiler")
     if post.edited: flags.append("Edited")
-    
+
+    # Add image URL section for non-self posts
+    image_url_section = f"""
+        • Image URL: {post.url}""" if not post.is_self else ""
+
     return f"""
         • Title: {post.title}
         • Type: {content_type}
-        • Content: {content[:300] + '...' if len(content) > 300 else content}
+        • Content: {content}
         • Author: u/{str(post.author)}
-        • Subreddit: r/{str(post.subreddit)}
+        • Subreddit: r/{str(post.subreddit)}{image_url_section}
         • Stats:
         - Score: {post.score:,}
         - Upvote Ratio: {post.upvote_ratio * 100:.1f}%
@@ -205,9 +209,9 @@ def _format_subreddit(subreddit: praw.models.Subreddit) -> str:
     flags = []
     if subreddit.over18: flags.append("NSFW")
     if hasattr(subreddit, 'subreddit_type'): flags.append(f"Type: {subreddit.subreddit_type}")
-    
+
     age_days = (time.time() - subreddit.created_utc) / (24 * 3600)
-    
+
     return f"""
         • Name: r/{subreddit.display_name}
         • Title: {subreddit.title}
@@ -216,7 +220,7 @@ def _format_subreddit(subreddit: praw.models.Subreddit) -> str:
         - Active Users: {subreddit.active_user_count if hasattr(subreddit, 'active_user_count') else 'Unknown'}
         • Description:
         - Short: {subreddit.public_description}
-        - Full: {subreddit.description[:300] + '...' if len(subreddit.description) > 300 else subreddit.description}
+        - Full: {subreddit.description}
         • Metadata:
         - Created: {_format_timestamp(subreddit.created_utc)}
         - Flags: {', '.join(flags) if flags else 'None'}
@@ -234,28 +238,28 @@ def _format_subreddit(subreddit: praw.models.Subreddit) -> str:
 def _get_user_recommendations(karma_ratio: float, is_mod: bool, account_age_days: float) -> str:
     """Generate personalized recommendations for user engagement."""
     recommendations = []
-    
+
     if karma_ratio > 5:
         recommendations.append("Consider creating more posts to share your expertise")
     elif karma_ratio < 0.2:
         recommendations.append("Engage more in discussions to build community connections")
-    
+
     if account_age_days < 30:
         recommendations.append("Explore popular subreddits in your areas of interest")
         recommendations.append("Read community guidelines before posting")
-    
+
     if is_mod:
         recommendations.append("Share moderation insights with other community leaders")
-    
+
     if not recommendations:
         recommendations.append("Maintain your balanced engagement across Reddit")
-    
+
     return "\n  - ".join(recommendations)
 
 def _get_best_engagement_time(created_utc: float, score: int) -> str:
     """Analyze and suggest optimal posting times based on post performance."""
     post_hour = datetime.fromtimestamp(created_utc).hour
-    
+
     # Simple time zone analysis
     if 14 <= post_hour <= 18:  # Peak Reddit hours
         return "Posted during peak engagement hours (2 PM - 6 PM), good timing!"
@@ -267,33 +271,33 @@ def _get_best_engagement_time(created_utc: float, score: int) -> str:
 def _get_subreddit_engagement_tips(subreddit: praw.models.Subreddit) -> str:
     """Generate engagement tips based on subreddit characteristics."""
     tips = []
-    
+
     if subreddit.subscribers > 1000000:
         tips.append("Post during peak hours for maximum visibility")
         tips.append("Ensure content is highly polished due to high competition")
     elif subreddit.subscribers < 1000:
         tips.append("Engage actively to help grow the community")
         tips.append("Consider cross-posting to related larger subreddits")
-    
+
     if hasattr(subreddit, 'active_user_count') and subreddit.active_user_count:
         activity_ratio = subreddit.active_user_count / subreddit.subscribers
         if activity_ratio > 0.1:
             tips.append("Quick responses recommended due to high activity")
-        
+
     return "\n  - ".join(tips or ["Regular engagement recommended to maintain community presence"])
 
 def _check_post_exists(post_id: str) -> bool:
     """Verify that a post exists and is accessible.
-    
+
     Args:
         post_id (str): The ID of the post to check
-        
+
     Returns:
         bool: True if post exists and is accessible, False otherwise
     """
     if not reddit:
         return False
-        
+
     try:
         submission = reddit.submission(id=post_id)
         # Try to access some attributes to verify the post exists
@@ -312,7 +316,7 @@ def _check_user_auth() -> bool:
 
     username = getenv("REDDIT_USERNAME")
     password = getenv("REDDIT_PASSWORD")
-    
+
     if not all([username, password]):
         logger.error("User authentication required. Please provide username and password.")
         return False
@@ -329,10 +333,10 @@ def _format_comment(comment: praw.models.Comment) -> str:
     flags = []
     if comment.edited: flags.append("Edited")
     if hasattr(comment, 'is_submitter') and comment.is_submitter: flags.append("OP")
-    
+
     return f"""
         • Author: u/{str(comment.author)}
-        • Content: {comment.body[:300] + '...' if len(comment.body) > 300 else comment.body}
+        • Content: {comment.body}
         • Stats:
         - Score: {comment.score:,}
         - Controversiality: {comment.controversiality if hasattr(comment, 'controversiality') else 'Unknown'}
@@ -351,26 +355,26 @@ def _format_comment(comment: praw.models.Comment) -> str:
 def _analyze_comment_impact(score: int, is_edited: bool, is_op: bool) -> str:
     """Analyze comment's impact and context."""
     insights = []
-    
+
     if score > 100:
         insights.append("Highly upvoted comment with significant community agreement")
     elif score < 0:
         insights.append("Controversial or contested viewpoint")
-    
+
     if is_edited:
         insights.append("Refined for clarity or accuracy")
     if is_op:
         insights.append("Author's perspective adds context to original post")
-        
+
     return "\n  - ".join(insights or ["Standard engagement with discussion"])
 
 @mcp.tool()
 def get_user_info(username: str) -> Dict:
     """Get information about a Reddit user.
-    
+
     Args:
         username (str): The username of the Reddit user to get info for
-        
+
     Returns:
         Dict: Formatted user information as bullet points
     """
@@ -388,12 +392,12 @@ def get_user_info(username: str) -> Dict:
 @mcp.tool()
 def get_top_posts(subreddit: str, time_filter: str = "week", limit: int = 10) -> Dict:
     """Get top posts from a subreddit.
-    
+
     Args:
         subreddit (str): Name of the subreddit
         time_filter (str): Time period to filter posts (e.g. "day", "week", "month", "year", "all")
         limit (int): Number of posts to fetch
-        
+
     Returns:
         Dict: List of formatted top posts as bullet points
     """
@@ -403,7 +407,7 @@ def get_top_posts(subreddit: str, time_filter: str = "week", limit: int = 10) ->
     try:
         logger.info(f"Getting top posts from r/{subreddit}")
         posts = reddit.subreddit(subreddit).top(time_filter=time_filter, limit=limit)
-        
+
         formatted_posts = [_format_post(post) for post in posts]
         summary = f"""
         Top {limit} Posts from r/{subreddit} ({time_filter}):
@@ -411,7 +415,7 @@ def get_top_posts(subreddit: str, time_filter: str = "week", limit: int = 10) ->
 
         {'=' * 50}
         """ + f"\n{'=' * 50}\n".join(formatted_posts)
-        
+
         return {"result": summary}
     except Exception as e:
         logger.error(f"Error getting top posts: {e}")
@@ -420,10 +424,10 @@ def get_top_posts(subreddit: str, time_filter: str = "week", limit: int = 10) ->
 @mcp.tool()
 def get_subreddit_info(subreddit_name: str) -> Dict:
     """Get information about a subreddit.
-    
+
     Args:
         subreddit_name (str): Name of the subreddit
-        
+
     Returns:
         Dict: Subreddit information including description, subscribers, etc.
     """
@@ -450,7 +454,7 @@ def get_subreddit_info(subreddit_name: str) -> Dict:
 @mcp.tool()
 def get_trending_subreddits() -> Dict:
     """Get currently trending subreddits.
-    
+
     Returns:
         Dict: List of trending subreddit names
     """
@@ -469,10 +473,10 @@ def get_trending_subreddits() -> Dict:
 @mcp.tool()
 def get_subreddit_stats(subreddit: str) -> Dict:
     """Get statistics about a subreddit.
-    
+
     Args:
         subreddit (str): Name of the subreddit
-        
+
     Returns:
         Dict: Formatted subreddit statistics and information
     """
@@ -496,14 +500,14 @@ def create_post(
     is_self: bool = True,
 ) -> Dict:
     """Create a new post in a subreddit.
-    
+
     Args:
         subreddit (str): Name of the subreddit to post in
         title (str): Title of the post
         content (str): Content of the post (text for self posts, URL for link posts)
         flair (Optional[str]): Flair to add to the post. Must be an available flair in the subreddit
         is_self (bool): Whether this is a self (text) post (True) or link post (False)
-        
+
     Returns:
         Dict: Formatted information about the created post
     """
@@ -552,12 +556,12 @@ def create_post(
 @mcp.tool()
 def reply_to_post(post_id: str, content: str, subreddit: Optional[str] = None) -> Dict:
     """Post a reply to an existing Reddit post.
-    
+
     Args:
         post_id (str): The ID of the post to reply to (can be full URL, permalink, or just ID)
         content (str): The content of the reply
         subreddit (Optional[str]): The subreddit name if known (for validation)
-        
+
     Returns:
         Dict: Formatted information about the created reply
     """
@@ -610,12 +614,12 @@ def reply_to_post(post_id: str, content: str, subreddit: Optional[str] = None) -
 @mcp.tool()
 def reply_to_comment(comment_id: str, content: str, subreddit: Optional[str] = None) -> Dict:
     """Post a reply to an existing Reddit comment.
-    
+
     Args:
         comment_id (str): The ID of the comment to reply to (can be full URL, permalink, or just ID)
         content (str): The content of the reply
         subreddit (Optional[str]): The subreddit name if known (for validation)
-        
+
     Returns:
         Dict: Formatted information about the created reply
     """
@@ -658,6 +662,99 @@ def reply_to_comment(comment_id: str, content: str, subreddit: Optional[str] = N
 
     except Exception as e:
         logger.error(f"Error creating reply: {e}")
+        raise
+
+@mcp.tool()
+def get_submission_by_url(url: str) -> Dict:
+    """Get a Reddit submission by its URL.
+
+    Args:
+        url (str): The URL of the Reddit submission to retrieve
+
+    Returns:
+        Dict: Formatted information about the submission
+    """
+    if not reddit:
+        raise Exception("Reddit client not initialized")
+
+    try:
+        logger.info(f"Getting submission from URL: {url}")
+
+        # Create submission from URL
+        submission = reddit.submission(url=url)
+
+        # Verify the submission exists by accessing its attributes
+        _ = submission.title
+        _ = submission.author
+
+        return {
+            "submission": _format_post(submission),
+            "metadata": {
+                "retrieved_at": _format_timestamp(time.time())
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error getting submission by URL: {e}")
+        raise
+
+@mcp.tool()
+def get_submission_by_id(submission_id: str) -> Dict:
+    """Get a Reddit submission by its ID.
+
+    Args:
+        submission_id (str): The ID of the Reddit submission to retrieve
+
+    Returns:
+        Dict: Formatted information about the submission
+    """
+    if not reddit:
+        raise Exception("Reddit client not initialized")
+
+    try:
+        logger.info(f"Getting submission with ID: {submission_id}")
+
+        # Clean up the submission_id if it's a full URL or permalink
+        if "/" in submission_id:
+            original_id = submission_id
+            submission_id = submission_id.split("/")[-1]
+            logger.info(f"Extracted submission ID {submission_id} from {original_id}")
+
+        # Create submission from ID
+        submission = reddit.submission(id=submission_id)
+
+        # Verify the submission exists by accessing its attributes
+        _ = submission.title
+        _ = submission.author
+
+        return {
+            "submission": _format_post(submission),
+            "metadata": {
+                "retrieved_at": _format_timestamp(time.time())
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error getting submission by ID: {e}")
+        raise
+
+@mcp.tool()
+def who_am_i() -> Dict:
+    """Get information about the currently authenticated user.
+
+    Returns:
+        Dict: Formatted information about the current user
+    """
+    if not reddit:
+        raise Exception("Reddit client not initialized")
+
+    if not _check_user_auth():
+        raise Exception("User authentication required. Please provide username and password.")
+
+    try:
+        logger.info("Getting information about the current user")
+        current_user = reddit.user.me()
+        return {"result": _format_user_info(current_user)}
+    except Exception as e:
+        logger.error(f"Error getting current user info: {e}")
         raise
 
 if __name__ == "__main__":

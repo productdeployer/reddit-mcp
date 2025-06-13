@@ -86,9 +86,12 @@ The server provides the following tools:
 - `get_top_posts(subreddit, time_filter, limit)` - Get and analyze top posts
 - `get_subreddit_stats(subreddit)` - Get comprehensive subreddit analysis
 - `get_trending_subreddits()` - Get list of trending subreddits
+- `get_submission_by_url(url)` - Get a Reddit submission by its URL
+- `get_submission_by_id(submission_id)` - Get a Reddit submission by its ID
 
 #### Authenticated Tools (require user credentials):
 
+- `who_am_i()` - Get information about the currently authenticated user
 - `create_post(subreddit, title, content, flair, is_self)` - Create an optimized post
 - `reply_to_post(post_id, content, subreddit)` - Add a reply with engagement insights
 - `reply_to_comment(comment_id, content, subreddit)` - Add a strategic reply
@@ -97,6 +100,7 @@ The server provides the following tools:
 
 Here are some examples of what you can ask an AI assistant connected to this server:
 
+- "Who am I on Reddit?" or "Show my Reddit profile"
 - "Analyze u/spez's Reddit activity"
 - "Show me the top posts from r/Python this week"
 - "Get statistics about r/AskReddit"
