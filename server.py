@@ -15,10 +15,17 @@ logger = logging.getLogger(__name__)
 mcp = FastMCP("Reddit MCP")
 
 # Global variable to track if Reddit client is in read-only mode
-reddit_is_read_only = True
+_reddit_client = None
+_reddit_is_read_only = None
 
-# Initialize Reddit client
 def get_reddit_client() -> Optional[praw.Reddit]:
+    """Initialize and return Reddit client with or without credentials"""
+    global _reddit_client, _reddit_is_read_only
+    
+    # Return cached client if already initialized
+    if _reddit_client is not None:
+        return _reddit_client
+    
     """Initialize and return Reddit client with or without credentials"""
     client_id = getenv("REDDIT_CLIENT_ID")
     client_secret = getenv("REDDIT_CLIENT_SECRET")
@@ -27,8 +34,7 @@ def get_reddit_client() -> Optional[praw.Reddit]:
     password = getenv("REDDIT_PASSWORD")
 
     # Initialize with read-only mode flag
-    global reddit_is_read_only
-    reddit_is_read_only = True
+    _reddit_is_read_only = True
 
     try:
         # Check if we have credentials for authenticated access
@@ -46,7 +52,7 @@ def get_reddit_client() -> Optional[praw.Reddit]:
                 # Test the authentication by making a simple API call
                 reddit_client.user.me()
                 logger.info(f"Successfully authenticated as u/{username}")
-                reddit_is_read_only = False
+                _reddit_is_read_only = False
                 return reddit_client
             except Exception as auth_error:
                 logger.warning(f"Authentication failed for u/{username}: {auth_error}")
@@ -60,7 +66,8 @@ def get_reddit_client() -> Optional[praw.Reddit]:
                 client_id=client_id,
                 client_secret=client_secret,
                 user_agent=user_agent,
-                check_for_updates=False
+                check_for_updates=False,
+                read_only=True
             )
 
         # Try to initialize in read-only mode without credentials
@@ -83,7 +90,17 @@ def get_reddit_client() -> Optional[praw.Reddit]:
         return None
 
 # Initialize Reddit client
-reddit = get_reddit_client()
+_reddit_client = get_reddit_client()
+
+def require_write_access(func):
+    """Decorator to ensure write access is available"""
+    def wrapper(*args, **kwargs):
+        if reddit_is_read_only:
+            raise ValueError("Write operation not allowed in read-only mode. Please provide valid credentials.")
+        if not _check_user_auth():
+            raise Exception("Authentication required for write operations.")
+        return func(*args, **kwargs)
+    return wrapper
 
 def _format_timestamp(timestamp: float) -> str:
     """Convert Unix timestamp to human readable format.
@@ -342,23 +359,22 @@ def _check_post_exists(post_id: str) -> bool:
         logger.error(f"Error checking post existence: {str(e)}")
         return False
 
+
 def _check_user_auth() -> bool:
     """Check if user authentication is available for write operations"""
     if not reddit:
         logger.error("Reddit client not initialized")
         return False
     
-    if reddit_is_read_only:
+    if _reddit_is_read_only:
         logger.error("Reddit client is in read-only mode")
         return False
+    
+    # Optional: Keep the try/except only for first-time verification
+    # or remove it entirely since we already verified during init
+    return True
 
-    try:
-        # Test if we can access authenticated user info
-        reddit.user.me()
-        return True
-    except Exception as e:
-        logger.error(f"Authentication error: {e}")
-        return False
+
 def _format_comment(comment: praw.models.Comment) -> str:
     """Format comment information with AI-driven insights."""
     flags = []
@@ -523,6 +539,7 @@ def get_subreddit_stats(subreddit: str) -> Dict:
         raise
 
 @mcp.tool()
+@require_write_access
 def create_post(
     subreddit: str,
     title: str,
@@ -545,7 +562,7 @@ def create_post(
     Raises:
         ValueError: If the client is in read-only mode
     """
-    if reddit_is_read_only:
+    if _reddit_is_read_only:
         raise ValueError("Cannot create posts in read-only mode. Please provide valid credentials.")
 
     if not reddit:
@@ -591,6 +608,7 @@ def create_post(
         raise
 
 @mcp.tool()
+@require_write_access
 def reply_to_post(post_id: str, content: str, subreddit: Optional[str] = None) -> Dict:
     """Post a reply to an existing Reddit post.
 
@@ -605,7 +623,7 @@ def reply_to_post(post_id: str, content: str, subreddit: Optional[str] = None) -
     Raises:
         ValueError: If the client is in read-only mode
     """
-    if reddit_is_read_only:
+    if _reddit_is_read_only:
         raise ValueError("Cannot create replies in read-only mode. Please provide valid credentials.")
 
     if not reddit:
@@ -655,6 +673,7 @@ def reply_to_post(post_id: str, content: str, subreddit: Optional[str] = None) -
         raise
 
 @mcp.tool()
+@require_write_access
 def reply_to_comment(comment_id: str, content: str, subreddit: Optional[str] = None) -> Dict:
     """Post a reply to an existing Reddit comment.
 
@@ -670,7 +689,7 @@ def reply_to_comment(comment_id: str, content: str, subreddit: Optional[str] = N
         raise Exception("Reddit client not initialized")
 
     # Check if client is in read-only mode
-    if reddit_is_read_only:
+    if _reddit_is_read_only:
         raise ValueError("Cannot reply to comment: Reddit client is in read-only mode. Please provide valid credentials.")
 
     if not _check_user_auth():
@@ -784,6 +803,7 @@ def get_submission_by_id(submission_id: str) -> Dict:
         raise
 
 @mcp.tool()
+@require_write_access
 def who_am_i() -> Dict:
     """Get information about the currently authenticated user.
 
