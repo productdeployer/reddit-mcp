@@ -1,11 +1,11 @@
-import json
 import logging
-from os import getenv
-from typing import Dict, List, Optional
-from mcp.server.fastmcp import FastMCP
-import praw  # type: ignore
-from datetime import datetime
 import time
+from datetime import datetime
+from os import getenv
+from typing import Dict, Optional
+
+import praw  # type: ignore
+from mcp.server.fastmcp import FastMCP
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
