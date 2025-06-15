@@ -53,7 +53,8 @@ def get_reddit_client() -> Optional[praw.Reddit]:
                 reddit_client.user.me()
                 logger.info(f"Successfully authenticated as u/{username}")
                 _reddit_is_read_only = False
-                return reddit_client
+                _reddit_client = reddit_client  # Cache the authenticated client
+                return _reddit_client
             except Exception as auth_error:
                 logger.warning(f"Authentication failed for u/{username}: {auth_error}")
                 logger.info("Falling back to read-only access")
@@ -62,13 +63,14 @@ def get_reddit_client() -> Optional[praw.Reddit]:
         # Check if we have client credentials for read-only access
         if client_id and client_secret:
             logger.info("Initializing Reddit client with read-only access")
-            return praw.Reddit(
+            _reddit_client = praw.Reddit(
                 client_id=client_id,
                 client_secret=client_secret,
                 user_agent=user_agent,
                 check_for_updates=False,
                 read_only=True
             )
+            return _reddit_client
 
         # Try to initialize in read-only mode without credentials
         logger.info("Initializing Reddit client in read-only mode without credentials")
@@ -80,7 +82,8 @@ def get_reddit_client() -> Optional[praw.Reddit]:
         # Test read-only access by fetching a public subreddit
         try:
             reddit_client.subreddit("popular").hot(limit=1)
-            return reddit_client
+            _reddit_client = reddit_client  # Cache the read-only client
+            return _reddit_client
         except Exception as e:
             logger.error(f"Failed to initialize read-only client: {e}")
             return None
