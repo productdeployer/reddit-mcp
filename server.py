@@ -27,7 +27,6 @@ def get_reddit_client() -> Optional[praw.Reddit]:
     if _reddit_client is not None:
         return _reddit_client
 
-    """Initialize and return Reddit client with or without credentials"""
     client_id = getenv("REDDIT_CLIENT_ID")
     client_secret = getenv("REDDIT_CLIENT_SECRET")
     user_agent = getenv("REDDIT_USER_AGENT", "RedditMCPServer v1.0")
@@ -375,7 +374,7 @@ def _get_subreddit_engagement_tips(subreddit: praw.models.Subreddit) -> str:
         tips.append("Consider cross-posting to related larger subreddits")
 
     if hasattr(subreddit, "active_user_count") and subreddit.active_user_count:
-        activity_ratio = subreddit.active_user_count / subreddit.subscribers
+        activity_ratio = subreddit.active_user_count / min(subreddit.subscribers, 1)
         if activity_ratio > 0.1:
             tips.append("Quick responses recommended due to high activity")
 
