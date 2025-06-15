@@ -8,14 +8,10 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, TypeVar, 
 import praw  # type: ignore
 from mcp.server.fastmcp import FastMCP
 
-# Type variable for function decorator
 F = TypeVar("F", bound=Callable[..., Any])
-
-# Type hints for PRAW objects
 if TYPE_CHECKING:
     pass
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -138,10 +134,7 @@ def require_write_access(func: F) -> F:
     return cast(F, wrapper)
 
 
-# Initialize MCP server
 mcp = FastMCP("Reddit MCP")
-
-# Initialize Reddit client manager
 reddit_manager = RedditClientManager()
 
 
@@ -159,32 +152,6 @@ def _format_timestamp(timestamp: float) -> str:
         return dt.strftime("%Y-%m-%d %H:%M:%S UTC")
     except Exception:
         return str(timestamp)
-
-
-def _analyze_user_activity(
-    karma_ratio: float, is_mod: bool, account_age_days: float
-) -> str:
-    """Generate insights about user's Reddit activity and engagement."""
-    insights = []
-
-    # Analyze karma ratio
-    if karma_ratio > 5:
-        insights.append("Primarily a commenter, highly engaged in discussions")
-    elif karma_ratio < 0.2:
-        insights.append("Content creator, focuses on sharing posts")
-    else:
-        insights.append("Balanced participation in both posting and commenting")
-
-    # Analyze account age and status
-    if account_age_days < 30:
-        insights.append("New user, still exploring Reddit")
-    elif account_age_days > 365 * 5:
-        insights.append("Long-time Redditor with extensive platform experience")
-
-    if is_mod:
-        insights.append("Community leader who helps maintain subreddit quality")
-
-    return "\n  - ".join(insights)
 
 
 def _analyze_post_engagement(score: int, ratio: float, num_comments: int) -> str:
@@ -208,69 +175,6 @@ def _analyze_post_engagement(score: int, ratio: float, num_comments: int) -> str
         insights.append("Yet to receive community interaction")
 
     return "\n  - ".join(insights)
-
-
-def _analyze_subreddit_health(
-    subscribers: int, active_users: int, age_days: float
-) -> str:
-    """Generate insights about subreddit health and activity."""
-    insights = []
-
-    # Analyze size and activity
-    if subscribers > 1000000:
-        insights.append("Major subreddit with massive following")
-    elif subscribers > 100000:
-        insights.append("Well-established community")
-    elif subscribers < 1000:
-        insights.append("Niche community, potential for growth")
-
-    if active_users:  # If we have active users data
-        activity_ratio = active_users / subscribers if subscribers > 0 else 0
-        if activity_ratio > 0.1:
-            insights.append("Highly active community with strong engagement")
-        elif activity_ratio < 0.01:
-            insights.append("Could benefit from more community engagement initiatives")
-
-    # Analyze age and maturity
-    if age_days > 365 * 5:
-        insights.append("Mature subreddit with established culture")
-    elif age_days < 90:
-        insights.append("New subreddit still forming its community")
-
-    return "\n  - ".join(insights)
-
-
-def _format_user_info(user: praw.models.Redditor) -> str:
-    """Format user information with AI-driven insights."""
-    status = []
-    if user.is_mod:
-        status.append("Moderator")
-    if user.is_gold:
-        status.append("Reddit Gold Member")
-    if user.is_employee:
-        status.append("Reddit Employee")
-
-    account_age = (time.time() - user.created_utc) / (24 * 3600)  # age in days
-    karma_ratio = (
-        user.comment_karma / user.link_karma if user.link_karma > 0 else float("inf")
-    )
-
-    return f"""
-        • Username: u/{user.name}
-        • Karma:
-        - Comment Karma: {user.comment_karma:,}
-        - Post Karma: {user.link_karma:,}
-        - Total Karma: {user.comment_karma + user.link_karma:,}
-        • Account Status: {", ".join(status) if status else "Regular User"}
-        • Account Created: {_format_timestamp(user.created_utc)}
-        • Profile URL: https://reddit.com/user/{user.name}
-
-        📊 Activity Analysis:
-        - {_analyze_user_activity(karma_ratio, user.is_mod, account_age)}
-
-        💡 Recommendations:
-        - {_get_user_recommendations(karma_ratio, user.is_mod, account_age)}
-        """
 
 
 def _format_post(post: praw.models.Submission) -> str:
@@ -318,32 +222,6 @@ def _format_post(post: praw.models.Submission) -> str:
         🎯 Best Time to Engage:
         - {_get_best_engagement_time(post.created_utc, post.score)}
         """
-
-
-def _get_user_recommendations(
-    karma_ratio: float, is_mod: bool, account_age_days: float
-) -> str:
-    """Generate personalized recommendations for user engagement."""
-    recommendations = []
-
-    if karma_ratio > 5:
-        recommendations.append("Consider creating more posts to share your expertise")
-    elif karma_ratio < 0.2:
-        recommendations.append(
-            "Engage more in discussions to build community connections"
-        )
-
-    if account_age_days < 30:
-        recommendations.append("Explore popular subreddits in your areas of interest")
-        recommendations.append("Read community guidelines before posting")
-
-    if is_mod:
-        recommendations.append("Share moderation insights with other community leaders")
-
-    if not recommendations:
-        recommendations.append("Maintain your balanced engagement across Reddit")
-
-    return "\n  - ".join(recommendations)
 
 
 def _get_best_engagement_time(created_utc: float, score: int) -> str:
