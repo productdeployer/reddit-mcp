@@ -55,7 +55,7 @@ def get_reddit_client() -> Optional[praw.Reddit]:
                 
                 current_user = reddit_client.user.me()
                 if current_user is None:
-                    raise ValueError("Failed to authenticate as u/{username}")
+                    raise ValueError(f"Failed to authenticate as u/{username}")
 
                 logger.info(f"Successfully authenticated as u/{username}")
                 _reddit_is_read_only = False
