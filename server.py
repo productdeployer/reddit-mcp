@@ -16,7 +16,7 @@ mcp = FastMCP("Reddit MCP")
 
 # Global variable to track if Reddit client is in read-only mode
 _reddit_client = None
-_reddit_is_read_only = None
+_reddit_is_read_only = True
 
 
 def get_reddit_client() -> Optional[praw.Reddit]:
@@ -52,7 +52,11 @@ def get_reddit_client() -> Optional[praw.Reddit]:
                     check_for_updates=False,
                 )
                 # Test the authentication by making a simple API call
-                reddit_client.user.me()
+                
+                current_user = reddit_client.user.me()
+                if current_user is None:
+                    raise ValueError("Failed to authenticate as u/{username}")
+
                 logger.info(f"Successfully authenticated as u/{username}")
                 _reddit_is_read_only = False
                 _reddit_client = reddit_client  # Cache the authenticated client
@@ -81,6 +85,7 @@ def get_reddit_client() -> Optional[praw.Reddit]:
             check_for_updates=False,
             read_only=True,
         )
+        _reddit_is_read_only = True
         # Test read-only access by fetching a public subreddit
         try:
             reddit_client.subreddit("popular").hot(limit=1)
@@ -102,6 +107,7 @@ _reddit_client = get_reddit_client()
 def require_write_access(func):
     """Decorator to ensure write access is available"""
 
+    @functools.wraps(func)
     def wrapper(*args, **kwargs):
         if _reddit_is_read_only:
             raise ValueError(
@@ -373,8 +379,8 @@ def _get_subreddit_engagement_tips(subreddit: praw.models.Subreddit) -> str:
         tips.append("Engage actively to help grow the community")
         tips.append("Consider cross-posting to related larger subreddits")
 
-    if hasattr(subreddit, "active_user_count") and subreddit.active_user_count:
-        activity_ratio = subreddit.active_user_count / min(subreddit.subscribers, 1)
+    if hasattr(subreddit, "active_user_count") and subreddit.active_user_count and subreddit.subscribers > 0:
+        activity_ratio = subreddit.active_user_count / subreddit.subscribers
         if activity_ratio > 0.1:
             tips.append("Quick responses recommended due to high activity")
 
