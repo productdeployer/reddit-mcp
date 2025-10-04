@@ -1,3 +1,12 @@
+* Upgrade FastMCP to >= 1.16.0 
+* Fix the server.py to use FastMCP("reddit MCP", port=8003)
+* Fix the mcp run to mcp.run(transport="streamable-http")
+
+
+
+
+
+
 # Reddit MCP Server
 
 This repository contains a Model Context Protocol server implementation for Reddit that allows AI assistants to access and interact with Reddit content through PRAW (Python Reddit API Wrapper).
